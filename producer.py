@@ -9,7 +9,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_messages", type=int, default=1000)
+    parser.add_argument("--n_messages", type=int, default=10)
     parser.add_argument("--freq", type=float, default=1000)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
@@ -24,6 +24,9 @@ def main():
     # PUSH-PULL requires at least one connected consumer to send messages
     socket = context.socket(zmq.PUSH)
     socket.bind("ipc:///tmp/zeromq_comm.sock")
+    # socket.setsockopt(zmq.SNDHWM, 80)
+    # socket.setsockopt(zmq.SNDBUF, 80)
+    # print("Prod HWM: ",socket.get_hwm())
     
     print("Producer starting... Sending messages via IPC socket")
     
@@ -32,15 +35,17 @@ def main():
     PERIOD_S = 1/args.freq
     try:
 
-        next_deadline = time.monotonic()
+        
         default_data = np.ones((args.num_channels,args.msg_size), dtype=np.float64)
+        socket.send(default_data.tobytes())
+
+        next_deadline = time.monotonic()
 
         for i in range(args.n_messages):
             while True:
                 now = time.monotonic()
                 if now >= next_deadline:
                     data = default_data * now
-                    # print(data)
                     socket.send(data.tobytes())
                     send_times.append(now)
                     # send_delays.append(np.float64(time.monotonic()) - now)
@@ -58,7 +63,7 @@ def main():
         # print(f"Std send time (s): {np.std(send_delays)/1e9:.6f}")
         # print('\n')
 
-        send_times = send_times[1:]
+        # send_times = send_times[1:]
         send_times_diff = np.diff(send_times)
         print(f"Average send period (s): {np.mean(send_times_diff):.6f}")
         print(f"Max send period (s): {np.max(send_times_diff):.6f}, idx: {np.argmax(send_times_diff)}")

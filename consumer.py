@@ -18,6 +18,11 @@ def main():
 
     socket = context.socket(zmq.PULL)
     socket.connect("ipc:///tmp/zeromq_comm.sock")
+    # socket.setsockopt(zmq.RCVHWM, 10)
+    # socket.setsockopt(zmq.RCVBUF, 10)
+    # print("Con HWM: ",socket.get_hwm())
+    # print("Con HWM: ",socket.getsockopt(zmq.RCVHWM))
+    # print("Con BUF: ",socket.getsockopt(zmq.RCVBUF))
     # socket.setsockopt_string(zmq.SUBSCRIBE, "")
     
     print("Consumer starting... Listening for messages via IPC socket")
@@ -25,29 +30,29 @@ def main():
     recv_times = []
     counter = 0
     try:
+        # Receive one sample that is not counted to initialize the stream
+        default_data = socket.recv()
+
         while counter < args.n_messages:
             # Receive message
             data = socket.recv()
-            # print(f"Received: {data}")
             now = time.monotonic()
             recv_times.append(now)
 
             process_times.append(now - np.frombuffer(data, dtype=np.float64)[0])
             counter += 1
-            # Process the data (example: just print it)
-            # print(f"  -> Processing message ID {data['id']} with value {data['value']}")
     
     except KeyboardInterrupt:
         print("\n\nShutting down consumer...")
     
     finally:
         print(f"Total messages processed: {len(process_times)}")
-        process_times = process_times[1:]     # exclude first measuremnt because of startup delay
+        # process_times = process_times[1:]     # exclude first measuremnt because of startup delay
         # print(f"Average processing time (s): {np.mean(process_times)/1e9:.6f}")
         # print(f"Max processing time (s): {np.max(process_times)/1e9:.6f}, idx: {np.argmax(process_times)}")
         # print(f"Std processing time (s): {np.std(process_times)/1e9:.6f}")
         # print('\n')
-        recv_times = recv_times[1:]
+        # recv_times = recv_times[1:]
         recv_times_diff = np.diff(recv_times)
         print(f"Average receive period (s): {np.mean(recv_times_diff):.6f}")
         print(f"Max receive period (s): {np.max(recv_times_diff):.6f}, idx: {np.argmax(recv_times_diff)}")

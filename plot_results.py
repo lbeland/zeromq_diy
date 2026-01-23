@@ -8,7 +8,7 @@ result_files = [f for f in os.listdir(results_folder) if "send_times" in f]
 
 # Layout: 4 columns minimum one row; add rows as needed
 n_plots = len(result_files)
-cols = 4
+cols = 1
 rows = max(1, math.ceil(n_plots / cols))
 
 fig, axes = plt.subplots(rows, cols, sharey=True,sharex=True, figsize=(4 * cols, 4 * rows))
@@ -28,13 +28,15 @@ for idx, file in enumerate(sorted(result_files)):
     recv_data = np.loadtxt(os.path.join(results_folder, receive_file), skiprows=1, delimiter=',')
     send_data = np.loadtxt(os.path.join(results_folder, file), skiprows=1, delimiter=',')
 
-    ax2.plot(send_data[:, 1], label="Send_period", c="green")
-    ax2.plot(recv_data[:, 2], label="Recv_period", c="red")
+    # ax2.plot(send_data[:, 0], label="Send_time", c="green")
+    # ax2.plot(recv_data[:, 0], label="Recv_time", c="red")
+    ax2.plot(recv_data[:, 2], label="Recv_period", c="blue")
+    ax2.plot(send_data[:, 1], label="Send_period", c="purple")
     ax1.plot(recv_data[:, 1], label="Latency", c="orange")
 
 
     # ax1.set_ylim(0, 1/float(freq))
-    ax2.set_ylim(0, 1/float(freq)*5)
+    # ax2.set_ylim(0, 1/float(freq)*5)
     ax1.set_title(f"Freq {freq} Hz | Ch {n_channels} | Msg {msg_size}")
     ax1.set_ylabel("Latency (s)")
     ax2.set_ylabel("Period (s)")

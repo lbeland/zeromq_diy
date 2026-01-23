@@ -7,8 +7,8 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_messages", type=int, default=1000)
-    parser.add_argument("--freq", type=int, default=1000)
+    parser.add_argument("--n_messages", type=int, default=10)
+    parser.add_argument("--freq", type=int, default=100)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
     parser.add_argument("--output_file", type=str, default="send_times.csv")
@@ -16,6 +16,9 @@ def main():
 
 
     os.makedirs("results", exist_ok=True)
+
+    if os.path.exists(f"results/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"):
+        return  # Skip if already exists
 
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
