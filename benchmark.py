@@ -14,10 +14,11 @@ def main():
     parser.add_argument("--output_file", type=str, default="send_times.csv")
     args = parser.parse_args()
 
+    result_folder = "results"
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(result_folder, exist_ok=True)
 
-    if os.path.exists(f"results/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"):
+    if os.path.exists(f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"):
         return  # Skip if already exists
 
     # 1. Start consumer FIRST
@@ -26,7 +27,7 @@ def main():
             "python3",
             "consumer.py",
             "--n_messages",  str(args.n_messages),
-            "--output_file", f"results/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"
+            "--output_file", f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"
         ],
         preexec_fn=os.setsid,  # allows group kill
     )
@@ -43,7 +44,7 @@ def main():
             "--freq", str(args.freq),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),
-            "--output_file", f"results/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"
+            "--output_file", f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"
         ],
         preexec_fn=os.setsid,
     )
