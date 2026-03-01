@@ -8,7 +8,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_messages", type=int, default=1000)
-    parser.add_argument("--freq", type=int, default=1000)
+    parser.add_argument("--freq", type=int, default=10000)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
     parser.add_argument("--output_file", type=str, default="send_times.csv")
@@ -20,8 +20,7 @@ def main():
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
         [
-            "python3",
-            "consumer.py",
+            "./consumer.bin",
             "--n_messages",  str(args.n_messages),
             "--output_file", f"results/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"
         ],
@@ -34,8 +33,7 @@ def main():
     # 2. Start producer
     producer = subprocess.Popen(
         [
-            "python3",
-            "producer.py",
+            "./producer.bin",
             "--n_messages", str(args.n_messages),
             "--freq", str(args.freq),
             "--num_channels", str(args.num_channels),
