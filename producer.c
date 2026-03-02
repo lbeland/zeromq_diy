@@ -17,7 +17,6 @@ double get_monotonic_time() {
 
 int main(int argc, char *argv[]) {
     int n_messages = 1000;
-    double freq = 1000.0;
     int msg_size = 1;
     int num_channels = 1;
     char output_file[256] = "send_times.csv";
@@ -26,19 +25,15 @@ int main(int argc, char *argv[]) {
     int opt;
     static const struct option long_options[] = {
         { "n_messages", required_argument, 0, 'n' },
-        { "freq", required_argument, 0, 'f' },
         { "msg_size", required_argument, 0, 'm' },
         { "num_channels", required_argument, 0, 'c' },
         { "output_file", required_argument, 0, 'o' },
         0
     };
-    while ((opt = getopt_long(argc, argv, "n:f:m:c:o:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:m:c:o:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'n':
                 n_messages = atoi(optarg);
-                break;
-            case 'f':
-                freq = atof(optarg);
                 break;
             case 'm':
                 msg_size = atoi(optarg);
@@ -53,7 +48,6 @@ int main(int argc, char *argv[]) {
             default:
                 fprintf(stderr, "Usage: %s [options]\n", argv[0]);
                 fprintf(stderr, "  -n n_messages (default: 1000)\n");
-                fprintf(stderr, "  -f freq in Hz (default: 1000)\n");
                 fprintf(stderr, "  -m msg_size (default: 1)\n");
                 fprintf(stderr, "  -c num_channels (default: 1)\n");
                 fprintf(stderr, "  -o output_file (default: send_times.csv)\n");
@@ -61,7 +55,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    double period = 1.0 / freq;
     int message_size = num_channels * msg_size * sizeof(double);
 
     // Create ZeroMQ context and socket
@@ -86,52 +79,52 @@ int main(int argc, char *argv[]) {
         message_data[i] = 1.0;
     }
 
-    int send_count = 0;
-    double next_deadline = get_monotonic_time();
-
-    for (int i = 0; i < n_messages; i++) {
-        while (1) {
-            double now = get_monotonic_time();
-            if (now >= next_deadline) {
-                // Fill message with current timestamp
-                for (int j = 0; j < num_channels * msg_size; j++) {
-                    message_data[j] = now;
-                }
-                zmq_send(socket, message_data, message_size, 0);
-                send_times[send_count] = now;
-                send_count++;
-                next_deadline += period;
-                break;
-            }
+    // Warmup
+    for (int i=0; i < 500; i++) {
+        double now = get_monotonic_time();
+        for (int j = 0; j < num_channels * msg_size; j++) {
+            message_data[j] = now;
         }
+        zmq_send(socket, message_data, message_size, 0);
     }
 
-    printf("Total messages sent: %d\n", send_count);
+    for (int i = 0; i < n_messages; i++) {
+        double now = get_monotonic_time();
+        // Fill message with current timestamp
+        for (int j = 0; j < num_channels * msg_size; j++) {
+            message_data[j] = now;
+        }
+        zmq_send(socket, message_data, message_size, 0);
+        send_times[i] = now;
+    }
+
+    printf("Total messages sent: %d\n", n_messages);
 
     // Calculate statistics (skip first measurement)
     double sum_diff = 0.0;
-    double max_diff = -1e9;
+    double max_diff = 0.0;
     int max_idx = 0;
     double sum_sq_diff = 0.0;
 
-    for (int i = 1; i < send_count; i++) {
-        double diff = send_times[i] - send_times[i - 1];
-        send_times_diff[i - 1] = diff;
+    for (int i = 0; i < n_messages-1; i++) {
+        double diff = send_times[i+1] - send_times[i];
+        send_times_diff[i] = diff;
         sum_diff += diff;
         sum_sq_diff += diff * diff;
         if (diff > max_diff) {
             max_diff = diff;
-            max_idx = i - 1;
+            max_idx = i;
         }
     }
 
-    double avg_period = sum_diff / (send_count - 1);
-    double variance = (sum_sq_diff / (send_count - 1)) - (avg_period * avg_period);
-    double std_period = sqrt(fmax(0.0, variance));
+    double avg_period_sec = sum_diff / (n_messages - 1);
+    double avg_period = avg_period_sec * 1e6;  // us
+    double variance = (sum_sq_diff / (n_messages - 1)) - (avg_period_sec * avg_period_sec);  // s²
+    double std_period = sqrt(fmax(0.0, variance)) * 1e6;  // us
 
-    printf("Average send period (s): %.6f\n", avg_period);
-    printf("Max send period (s): %.6f, idx: %d\n", max_diff, max_idx);
-    printf("Std send period (s): %.6f\n", std_period);
+    printf("Average send period (us): %.6f\n", avg_period);
+    printf("Max send period (us): %.6f, idx: %d\n", max_diff * 1e6, max_idx);
+    printf("Std send period (us): %.6f\n", std_period);
 
     // Save to CSV
     FILE *fp = fopen(output_file, "w");
@@ -140,12 +133,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    fprintf(fp, "send_time,send_period\n");
-    for (int i = 0; i < send_count - 1; i++) {
-        fprintf(fp, "%.15f,%.15f\n", send_times[i], send_times_diff[i]);
-    }
-    // Last row
-    fprintf(fp, "%.15f,0.0\n", send_times[send_count - 1]);
+    fprintf(fp, "Metric,Send_period\n");
+    fprintf(fp, "mean,%.6f\n", avg_period);
+    fprintf(fp, "std,%.6f\n", std_period);
+    fprintf(fp, "max,%.6f\n", max_diff * 1e6);
 
     fclose(fp);
 

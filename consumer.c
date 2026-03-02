@@ -65,57 +65,95 @@ int main(int argc, char *argv[]) {
 
     // Allocate buffer for receiving messages
     // We'll use a large enough buffer; ZeroMQ will tell us the actual size
-    char message_buffer[64 * 1024];
+    int EXPECTED_SIZE = 40 * 4096 * 8;  // max expected message size (num_channels * msg_size * sizeof(double))
+    char message_buffer[EXPECTED_SIZE];  // max expected message size (num_channels * msg_size * sizeof(double))
+
+    // Warmup
+    while (receive_count < 500) {
+        int size = zmq_recv(socket, message_buffer, sizeof(message_buffer) - 1, 0);
+        if (size == -1) {
+            fprintf(stderr, "Error receiving message\n");
+            break;
+        }
+        receive_count++;
+    }
+
+    receive_count = 0;  // reset count for actual measurement
+    double first_timestamp = 0.0;
 
     while (receive_count < n_messages) {
-        int size = zmq_recv(socket, message_buffer, sizeof(message_buffer) - 1, 0);
+        int size = zmq_recv(socket, message_buffer, sizeof(message_buffer), 0);
         if (size == -1) {
             fprintf(stderr, "Error receiving message\n");
             break;
         }
 
         double now = get_monotonic_time();
-        recv_times[receive_count] = now;
 
         // Extract timestamp from message (first double)
-        if (size >= sizeof(double)) {
-            double msg_timestamp = *((double *)message_buffer);
-            process_times[receive_count] = now - msg_timestamp;
-        } else {
-            process_times[receive_count] = 0.0;
+        double msg_timestamp;
+        memcpy(&msg_timestamp, message_buffer, sizeof(double));
+
+        if (receive_count == 0) {
+            first_timestamp = msg_timestamp;
         }
+
+        recv_times[receive_count] = now;
+        process_times[receive_count] = now - msg_timestamp;
 
         receive_count++;
     }
 
     printf("Total messages processed: %d\n", receive_count);
 
-    // Calculate statistics (skip first measurement)
-    if (receive_count > 1) {
-        double sum_diff = 0.0;
-        double max_diff = -1e9;
-        int max_idx = 0;
-        double sum_sq_diff = 0.0;
+    // Jitter statistics
+    double sum_diff = 0.0;
+    double max_diff = 0.0;
+    int max_idx = 0;
+    double sum_sq_diff = 0.0;
 
-        for (int i = 1; i < receive_count; i++) {
-            double diff = recv_times[i] - recv_times[i - 1];
-            recv_times_diff[i - 1] = diff;
-            sum_diff += diff;
-            sum_sq_diff += diff * diff;
-            if (diff > max_diff) {
-                max_diff = diff;
-                max_idx = i - 1;
-            }
+    for (int i = 0; i < n_messages-1; i++) {
+        double diff = recv_times[i+1] - recv_times[i];
+        recv_times_diff[i] = diff;
+        sum_diff += diff;
+        sum_sq_diff += diff * diff;
+        if (diff > max_diff) {
+            max_diff = diff;
+            max_idx = i;
         }
-
-        double avg_period = sum_diff / (receive_count - 1);
-        double variance = (sum_sq_diff / (receive_count - 1)) - (avg_period * avg_period);
-        double std_period = sqrt(fmax(0.0, variance));
-
-        printf("Average receive period (s): %.6f\n", avg_period);
-        printf("Max receive period (s): %.6f, idx: %d\n", max_diff, max_idx);
-        printf("Std receive period (s): %.6f\n", std_period);
     }
+
+    double avg_period_sec = sum_diff / (n_messages - 1);
+    double avg_period = avg_period_sec * 1e6;  // us
+    double variance = (sum_sq_diff / (n_messages - 1)) - (avg_period_sec * avg_period_sec);  // s²
+    double std_period = sqrt(fmax(0.0, variance)) * 1e6;  // us
+
+    printf("Average receive period (us): %.6f\n", avg_period);
+    printf("Max receive period (us): %.6f, idx: %d\n", max_diff*1e6, max_idx);
+    printf("Std receive period (us): %.6f\n", std_period);
+
+    // Latency statistics
+    double sum = 0.0;
+    double max = 0.0;
+    max_idx = 0;
+    double sum_sq = 0.0;
+
+    for (int i=0;i<n_messages;i++) {
+        sum += process_times[i];
+        sum_sq += process_times[i] * process_times[i];
+        if (process_times[i] > max) {
+            max = process_times[i];
+            max_idx = i;
+        }
+    }
+    double avg_latency_sec = sum / n_messages;
+    double avg_latency = avg_latency_sec * 1e6;  // us
+    double variance_latency = (sum_sq / n_messages) - (avg_latency_sec * avg_latency_sec);  // s²
+    double std_latency = sqrt(fmax(0.0, variance_latency)) * 1e6;  // us
+
+    double throughput = n_messages / (recv_times[n_messages-1] - first_timestamp)/1e3;
+    printf("Throughput (msg/ms): %.2f\n", throughput);
+
 
     // Save to CSV
     FILE *fp = fopen(output_file, "w");
@@ -124,12 +162,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    fprintf(fp, "recv_time,latency,recv_period\n");
-    for (int i = 0; i < receive_count - 1; i++) {
-        fprintf(fp, "%.15f,%.15f,%.15f\n", recv_times[i], process_times[i], recv_times_diff[i]);
-    }
-    // Last row
-    fprintf(fp, "%.15f,%.15f,0.0\n", recv_times[receive_count - 1], process_times[receive_count - 1]);
+    fprintf(fp, "Metric,Recv_period, Latency, Throughput\n");
+    fprintf(fp, "mean,%.6f, %.6f, %.6f\n", avg_period, avg_latency, throughput);
+    fprintf(fp, "std,%.6f, %.6f, \n", std_period, std_latency);
+    fprintf(fp, "max,%.6f, %.6f, \n", max_diff*1e6, max*1e6);
 
     fclose(fp);
 

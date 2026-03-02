@@ -8,14 +8,14 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_messages", type=int, default=1000)
-    parser.add_argument("--freq", type=int, default=10000)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
     parser.add_argument("--output_file", type=str, default="send_times.csv")
     args = parser.parse_args()
 
+    result_folder = "results"
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(result_folder, exist_ok=True)
 
     if os.path.exists(f"results/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"):
         return
@@ -25,7 +25,7 @@ def main():
         [
             "./consumer.bin",
             "--n_messages",  str(args.n_messages),
-            "--output_file", f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"
+            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv"
         ],
         preexec_fn=os.setsid,  # allows group kill
     )
@@ -38,18 +38,17 @@ def main():
         [
             "./producer.bin",
             "--n_messages", str(args.n_messages),
-            "--freq", str(args.freq),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),
-            "--output_file", f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"
+            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}_Producer.csv"
         ],
         preexec_fn=os.setsid,
     )
 
     try:
         # 3. Wait for completion
-        producer.wait(timeout=args.n_messages / args.freq + 10)
-        consumer.wait(timeout=args.n_messages / args.freq + 10)
+        producer.wait(10)
+        consumer.wait(10)
 
     except subprocess.TimeoutExpired:
         print("Timeout expired, terminating processes")
