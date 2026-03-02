@@ -17,6 +17,9 @@ def main():
 
     os.makedirs("results", exist_ok=True)
 
+    if os.path.exists(f"results/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"):
+        return
+
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
         [
