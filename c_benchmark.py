@@ -1,0 +1,71 @@
+import subprocess
+import time
+import os
+import signal
+import argparse
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_messages", type=int, default=1000)
+    parser.add_argument("--freq", type=int, default=10000)
+    parser.add_argument("--msg_size", type=int, default=1)
+    parser.add_argument("--num_channels", type=int, default=1)
+    parser.add_argument("--output_file", type=str, default="send_times.csv")
+    args = parser.parse_args()
+
+
+    os.makedirs("results", exist_ok=True)
+
+    if os.path.exists(f"results/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"):
+        return
+
+    # 1. Start consumer FIRST
+    consumer = subprocess.Popen(
+        [
+            "./consumer.bin",
+            "--n_messages",  str(args.n_messages),
+            "--output_file", f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_recv_times.csv"
+        ],
+        preexec_fn=os.setsid,  # allows group kill
+    )
+
+    # Give consumer time to bind socket
+    time.sleep(0.5)
+
+    # 2. Start producer
+    producer = subprocess.Popen(
+        [
+            "./producer.bin",
+            "--n_messages", str(args.n_messages),
+            "--freq", str(args.freq),
+            "--num_channels", str(args.num_channels),
+            "--msg_size", str(args.msg_size),
+            "--output_file", f"{result_folder}/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"
+        ],
+        preexec_fn=os.setsid,
+    )
+
+    try:
+        # 3. Wait for completion
+        producer.wait(timeout=args.n_messages / args.freq + 10)
+        consumer.wait(timeout=args.n_messages / args.freq + 10)
+
+    except subprocess.TimeoutExpired:
+        print("Timeout expired, terminating processes")
+        terminate(producer)
+        terminate(consumer)
+        raise
+
+    print(f"Benchmark complete")
+
+
+def terminate(proc):
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    main()
