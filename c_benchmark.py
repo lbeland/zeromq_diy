@@ -10,14 +10,14 @@ def main():
     parser.add_argument("--n_messages", type=int, default=1000)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
-    parser.add_argument("--output_file", type=str, default="send_times.csv")
+    parser.add_argument("--output_file", type=str, default="Producer.csv")
     args = parser.parse_args()
 
     result_folder = "results"
 
     os.makedirs(result_folder, exist_ok=True)
 
-    if os.path.exists(f"results/{args.freq}_{args.num_channels}_{args.msg_size}_send_times.csv"):
+    if os.path.exists(f"results/{args.num_channels}_{args.msg_size}_Consumer.csv"):
         return
 
     # 1. Start consumer FIRST
