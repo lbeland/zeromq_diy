@@ -13,11 +13,11 @@ def main():
     parser.add_argument("--output_file", type=str, default="Producer.csv")
     args = parser.parse_args()
 
-    result_folder = "results"
+    result_folder = "c_results"
 
     os.makedirs(result_folder, exist_ok=True)
 
-    if os.path.exists(f"results/{args.num_channels}_{args.msg_size}_Consumer.csv"):
+    if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv"):
         return
 
     # 1. Start consumer FIRST

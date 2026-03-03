@@ -17,8 +17,10 @@ def main():
 
     os.makedirs(result_folder, exist_ok=True)
 
-    if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv"):
-        return  # Skip if already exists
+    # if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv"):
+    #     return  # Skip if already exists
+
+    os.remove("/tmp/zeromq_comm.sock") if os.path.exists("/tmp/zeromq_comm.sock") else None
 
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
@@ -51,6 +53,9 @@ def main():
         # 3. Wait for completion
         producer.wait(10)
         consumer.wait(10)
+    except KeyboardInterrupt:
+        terminate(producer)
+        terminate(consumer)
 
     except subprocess.TimeoutExpired:
         print("Timeout expired, terminating processes")

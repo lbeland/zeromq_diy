@@ -23,11 +23,14 @@ def main():
     # PUB-SUB will generate samples even if no consumer is connected
     # PUSH-PULL requires at least one connected consumer to send messages
     socket = context.socket(zmq.PUSH)
-    socket.bind("ipc:///tmp/zeromq_comm.sock")
-    # socket.setsockopt(zmq.SNDHWM, 80)
-    # socket.setsockopt(zmq.SNDBUF, 80)
-    # print("Prod HWM: ",socket.get_hwm())
-    
+    socket.setsockopt(zmq.SNDHWM, 10)
+    socket.setsockopt(zmq.SNDBUF,10)
+    print("Producer HWM: ",socket.get_hwm())
+    poller = zmq.Poller()
+    poller.register(socket, zmq.POLLOUT)   
+
+    socket.bind("ipc:///tmp/zeromq_comm.sock2")
+
     print(f"Producer starting... Sending messages via IPC socket")
     
     send_times = []
@@ -36,21 +39,25 @@ def main():
         
 
         # warmup loop to stabilize the stream before measurements
-        counter = 0
         for i in range(500):
             now = time.monotonic()
+            # print(f"Sent warmup message {i+1}/5: {now}")
             socket.send((default_data*now).tobytes())
-            counter+=1
+
+        time.sleep(1)
 
         for i in range(args.n_messages):
             now = time.monotonic()
             data = default_data * now
-            socket.send(data.tobytes())
+            socket.send(data.tobytes()) # blocks if internal kernel buffer uís full (HWM does not apply directly)
+                    
+            # print(f"Sent message {i+1}/{args.n_messages}: {now}")
             send_times.append(now)
-
 
     except KeyboardInterrupt:
         print("\n\nShutting down producer...")
+        socket.close(linger=0)
+        context.term()
     finally:
         print(f"Total messages sent: {len(send_times)}")
 

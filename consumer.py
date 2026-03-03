@@ -18,12 +18,11 @@ def main():
     context = zmq.Context()
 
     socket = context.socket(zmq.PULL)
-    socket.connect("ipc:///tmp/zeromq_comm.sock")
-    # socket.setsockopt(zmq.RCVHWM, 10)
-    # socket.setsockopt(zmq.RCVBUF, 10)
-    # print("Con HWM: ",socket.get_hwm())
-    # print("Con HWM: ",socket.getsockopt(zmq.RCVHWM))
-    # print("Con BUF: ",socket.getsockopt(zmq.RCVBUF))
+    socket.setsockopt(zmq.RCVHWM, 10)
+    socket.setsockopt(zmq.RCVBUF, 10)
+
+
+    socket.connect("ipc:///tmp/zeromq_comm.sock2")
     # socket.setsockopt_string(zmq.SUBSCRIBE, "")
     
     print(f"Consumer starting... Listening for messages via IPC socket")
@@ -34,7 +33,7 @@ def main():
         # Receive 500 samples as warmup
         while counter < 500:
             # Receive message
-            socket.recv()
+            data = socket.recv()
             counter += 1
 
         counter = 0
@@ -48,11 +47,13 @@ def main():
                 first_timestamp = timestamp
             recv_times.append(now)
             process_times.append(now - timestamp)
+            # print(f"Received message {counter+1}/{args.n_messages}: {timestamp}")
             counter += 1
     
     except KeyboardInterrupt:
         print("\n\nShutting down consumer...")
-    
+        socket.close(linger=0)
+        context.term()
     finally:
         print(f"Total messages processed: {len(process_times)}")
         recv_times_diff = np.diff(recv_times)
@@ -68,7 +69,12 @@ def main():
         std_latency = np.std(process_times)*1e6
         max_latency = np.max(process_times)*1e6
 
+        print(f"Average latency (us): {mean_latency:.4f}")
+        print(f"Max latency (us): {max_latency:.4f}, idx: {np.argmax(process_times)}")
+        print(f"Std latency (us): {std_latency:.4f}")
+
         throughput = args.n_messages / (recv_times[-1] - first_timestamp)/1e3
+        print(f"Started sending at {first_timestamp:.4f}, finished at {recv_times[-1]:.4f}")
         print(f"Throughput (msg/ms): {args.n_messages}/{(recv_times[-1] - first_timestamp)*1e3:.4f}ms={throughput:.2f}")
 
         results = pd.DataFrame({"Metric":["mean", "std", "max"],
@@ -77,7 +83,7 @@ def main():
                                 "Throughput": [throughput, None, None]})
 
         results.to_csv(args.output_file, index=False)
-        socket.close()
+        socket.close(linger=0)
         context.term()
         print("Consumer stopped.")
 
