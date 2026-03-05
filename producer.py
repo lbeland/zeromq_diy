@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--n_messages", type=int, default=3)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
+    parser.add_argument("--max_buffer_size", type=int, default=10)
     parser.add_argument("--output_file", type=str, default="producer_metric.csv")
     args = parser.parse_args()
 
@@ -23,8 +24,7 @@ def main():
     # PUB-SUB will generate samples even if no consumer is connected
     # PUSH-PULL requires at least one connected consumer to send messages
     socket = context.socket(zmq.PUSH)
-    socket.setsockopt(zmq.SNDHWM, 10)
-    # socket.setsockopt(zmq.SNDBUF,10*8)  # 10 messages * 8 bytes per message
+    socket.setsockopt(zmq.SNDHWM, args.max_buffer_size)
     print("Producer HWM: ",socket.get_hwm())
 
     socket.bind("ipc:///tmp/zeromq_comm.sock2")
@@ -47,12 +47,8 @@ def main():
         for i in range(args.n_messages):
             now = time.monotonic()
             data = default_data * now
-            try:
-                socket.send(data.tobytes(), flags=zmq.NOBLOCK) # blocks if internal kernel buffer uís full (HWM does not apply directly)
-            except zmq.Again:
-                # print(f"Send buffer full at message {i+1}, waiting for consumer to catch up...")
-                socket.send(data.tobytes())  # Retry sending without NOBLOCK
-                    
+            socket.send(data.tobytes()) # Blocks on full buffer
+
             # print(f"Sent message {i+1}/{args.n_messages}: {now}")
             send_times.append(now)
 

@@ -8,6 +8,7 @@
 #include <time.h>
 #include <math.h>
 #include <getopt.h>
+#include <unistd.h>
 
 double get_monotonic_time() {
     struct timespec ts;
@@ -98,8 +99,11 @@ int main(int argc, char *argv[]) {
             first_timestamp = msg_timestamp;
         }
 
+        // printf("Received message %d/%d \n", receive_count+1, n_messages);
+
         recv_times[receive_count] = now;
         process_times[receive_count] = now - msg_timestamp;
+        // sleep(0.1);  // Sleep for 1 millisecond
 
         receive_count++;
     }
@@ -151,8 +155,12 @@ int main(int argc, char *argv[]) {
     double variance_latency = (sum_sq / n_messages) - (avg_latency_sec * avg_latency_sec);  // s²
     double std_latency = sqrt(fmax(0.0, variance_latency)) * 1e6;  // us
 
+    printf("Average latency (us): %.6f\n", avg_latency);
+    printf("Max latency (us): %.6f, idx: %d\n", max*1e6, max_idx);
+    printf("Std latency (us): %.6f\n", std_latency);
+
     double throughput = n_messages / (recv_times[n_messages-1] - first_timestamp)/1e3;
-    printf("Throughput (msg/ms): %.2f\n", throughput);
+    printf("Throughput (msg/ms): %d/%.6fms= %.2f\n", n_messages, (recv_times[n_messages-1] - first_timestamp)*1e3, throughput);
 
 
     // Save to CSV

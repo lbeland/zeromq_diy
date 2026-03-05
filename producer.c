@@ -8,6 +8,7 @@
 #include <time.h>
 #include <math.h>
 #include <getopt.h>
+#include <errno.h>
 
 double get_monotonic_time() {
     struct timespec ts;
@@ -19,6 +20,7 @@ int main(int argc, char *argv[]) {
     int n_messages = 1000;
     int msg_size = 1;
     int num_channels = 1;
+    int max_buffer_size = 10;
     char output_file[256] = "send_times.csv";
 
     // Parse command-line arguments
@@ -27,10 +29,11 @@ int main(int argc, char *argv[]) {
         { "n_messages", required_argument, 0, 'n' },
         { "msg_size", required_argument, 0, 'm' },
         { "num_channels", required_argument, 0, 'c' },
+        { "max_buffer_size", required_argument, 0, 'b' },
         { "output_file", required_argument, 0, 'o' },
         0
     };
-    while ((opt = getopt_long(argc, argv, "n:m:c:o:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:m:c:b:o:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'n':
                 n_messages = atoi(optarg);
@@ -40,6 +43,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'c':
                 num_channels = atoi(optarg);
+                break;
+            case 'b':
+                max_buffer_size = atoi(optarg);
                 break;
             case 'o':
                 strncpy(output_file, optarg, sizeof(output_file) - 1);
@@ -60,6 +66,12 @@ int main(int argc, char *argv[]) {
     // Create ZeroMQ context and socket
     void *context = zmq_ctx_new();
     void *socket = zmq_socket(context, ZMQ_PUSH);
+    zmq_setsockopt(socket, ZMQ_SNDHWM, &(int){max_buffer_size}, sizeof(int));
+    int hwm;
+    size_t opt_len = sizeof(int);
+    zmq_getsockopt(socket, ZMQ_SNDHWM, &hwm, &opt_len);
+    printf("Socket HWM: %d\n", hwm);
+
     zmq_bind(socket, "ipc:///tmp/zeromq_comm.sock");
 
     printf("Producer starting... Sending messages via IPC socket\n");
@@ -88,19 +100,22 @@ int main(int argc, char *argv[]) {
         zmq_send(socket, message_data, message_size, 0);
     }
 
+    int count = 0;
     for (int i = 0; i < n_messages; i++) {
         double now = get_monotonic_time();
         // Fill message with current timestamp
         for (int j = 0; j < num_channels * msg_size; j++) {
             message_data[j] = now;
         }
-        zmq_send(socket, message_data, message_size, 0);
+        
+        int size = zmq_send(socket, message_data, message_size, 0);
         send_times[i] = now;
+        count++;
     }
 
-    printf("Total messages sent: %d\n", n_messages);
+    printf("Total messages sent: %d\n",count);
 
-    // Calculate statistics (skip first measurement)
+    // Calculate statistics
     double sum_diff = 0.0;
     double max_diff = 0.0;
     int max_idx = 0;
@@ -141,8 +156,8 @@ int main(int argc, char *argv[]) {
     fclose(fp);
 
     // Cleanup
-    zmq_close(socket);
-    zmq_ctx_destroy(context);
+    // zmq_close(socket);
+    // zmq_ctx_destroy(context);
     free(send_times);
     free(send_times_diff);
     free(message_data);
