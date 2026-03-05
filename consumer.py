@@ -18,12 +18,11 @@ def main():
     context = zmq.Context()
 
     socket = context.socket(zmq.PULL)
-    socket.setsockopt(zmq.RCVHWM, 10)
-    socket.setsockopt(zmq.RCVBUF, 10)
+    # socket.setsockopt(zmq.RCVHWM, 10)
+    # socket.setsockopt(zmq.RCVBUF, 8)  # 10 messages * 8 bytes per message
 
 
     socket.connect("ipc:///tmp/zeromq_comm.sock2")
-    # socket.setsockopt_string(zmq.SUBSCRIBE, "")
     
     print(f"Consumer starting... Listening for messages via IPC socket")
     process_times = []

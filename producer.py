@@ -24,10 +24,8 @@ def main():
     # PUSH-PULL requires at least one connected consumer to send messages
     socket = context.socket(zmq.PUSH)
     socket.setsockopt(zmq.SNDHWM, 10)
-    socket.setsockopt(zmq.SNDBUF,10)
+    # socket.setsockopt(zmq.SNDBUF,10*8)  # 10 messages * 8 bytes per message
     print("Producer HWM: ",socket.get_hwm())
-    poller = zmq.Poller()
-    poller.register(socket, zmq.POLLOUT)   
 
     socket.bind("ipc:///tmp/zeromq_comm.sock2")
 
@@ -44,12 +42,16 @@ def main():
             # print(f"Sent warmup message {i+1}/5: {now}")
             socket.send((default_data*now).tobytes())
 
-        time.sleep(1)
+        time.sleep(0.01)
 
         for i in range(args.n_messages):
             now = time.monotonic()
             data = default_data * now
-            socket.send(data.tobytes()) # blocks if internal kernel buffer uís full (HWM does not apply directly)
+            try:
+                socket.send(data.tobytes(), flags=zmq.NOBLOCK) # blocks if internal kernel buffer uís full (HWM does not apply directly)
+            except zmq.Again:
+                # print(f"Send buffer full at message {i+1}, waiting for consumer to catch up...")
+                socket.send(data.tobytes())  # Retry sending without NOBLOCK
                     
             # print(f"Sent message {i+1}/{args.n_messages}: {now}")
             send_times.append(now)
