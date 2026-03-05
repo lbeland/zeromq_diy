@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
     parser.add_argument("--max_buffer_size", type=int, default=10)
+    parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--output_file", type=str, default="Producer.csv")
     args = parser.parse_args()
 
@@ -18,8 +19,8 @@ def main():
 
     os.makedirs(result_folder, exist_ok=True)
 
-    # if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv"):
-    #     return
+    if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
+        return
 
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
