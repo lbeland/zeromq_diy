@@ -81,7 +81,11 @@ def main():
                                 "Latency": [mean_latency, std_latency, max_latency], 
                                 "Throughput": [throughput, None, None]})
 
-        results.to_csv(args.output_file, index=False)
+        results.to_csv(args.output_file + "_Consumer.csv", index=False)
+
+        recv_times_diff.tofile(args.output_file + "_recv_times.csv", sep="\n")
+        np.array(process_times).tofile(args.output_file + "_process_times.csv", sep="\n")
+
         socket.close(linger=0)
         context.term()
         print("Consumer stopped.")

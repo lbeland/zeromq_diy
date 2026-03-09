@@ -2,17 +2,15 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2
 LIBS = -lzmq -lm
 
-TARGETS = producer.bin consumer.bin
+C_SOURCES := $(shell find . -type f -name '*.c' -not -path './venv/*')
+TARGETS := $(patsubst %.c,%.bin,$(C_SOURCES))
 
 .PHONY: all clean
 
 all: $(TARGETS)
 
-producer.bin: producer.c
-	$(CC) $(CFLAGS) -o producer.bin producer.c $(LIBS)
-
-consumer.bin: consumer.c
-	$(CC) $(CFLAGS) -o consumer.bin consumer.c $(LIBS)
+%.bin: %.c
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
 
 clean:
 	rm -f $(TARGETS)

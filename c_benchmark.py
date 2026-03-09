@@ -25,9 +25,9 @@ def main():
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
         [
-            "./consumer.bin",
+            "./Consumer/consumer.bin",
             "--n_messages",  str(args.n_messages),
-            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv"
+            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
         ],
         preexec_fn=os.setsid,  # allows group kill
     )
@@ -38,12 +38,12 @@ def main():
     # 2. Start producer
     producer = subprocess.Popen(
         [
-            "./producer.bin",
+            "./Producer/producer.bin",
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),
             "--max_buffer_size", str(args.max_buffer_size),
-            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}_Producer.csv"
+            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
         ],
         preexec_fn=os.setsid,
     )

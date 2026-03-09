@@ -68,7 +68,9 @@ def main():
         print(f"Std send period (us): {std_send_period:.4f}")
 
         results = pd.DataFrame({"Metric":["mean", "std", "max"],"Send_period": [mean_send_period, std_send_period, max_send_period]})
-        results.to_csv(args.output_file, index=False)
+        results.to_csv(args.output_file + "_Producer.csv", index=False)
+
+        send_times_diff.tofile(args.output_file + "_send_times.csv", sep="\n")
         print("Producer stopped.")
 
         

@@ -142,22 +142,36 @@ int main(int argc, char *argv[]) {
     printf("Std send period (us): %.6f\n", std_period);
 
     // Save to CSV
-    FILE *fp = fopen(output_file, "w");
+    char base_output_file[256];
+    strncpy(base_output_file, output_file, sizeof(base_output_file) - 1);
+    base_output_file[sizeof(base_output_file) - 1] = '\0';
+
+    char metrics_file[300];
+    snprintf(metrics_file, sizeof(metrics_file), "%s_Producer.csv", base_output_file);
+    FILE *fp = fopen(metrics_file, "w");
     if (fp == NULL) {
-        fprintf(stderr, "Error opening file %s\n", output_file);
+        fprintf(stderr, "Error opening file %s\n", metrics_file);
         return 1;
     }
-
     fprintf(fp, "Metric,Send_period\n");
     fprintf(fp, "mean,%.6f\n", avg_period);
     fprintf(fp, "std,%.6f\n", std_period);
     fprintf(fp, "max,%.6f\n", max_diff * 1e6);
-
     fclose(fp);
 
+    char send_times_file[300];
+    snprintf(send_times_file, sizeof(send_times_file), "%s_send_times.csv", base_output_file);
+    FILE *fp2 = fopen(send_times_file, "w");
+    if (fp2 == NULL) {
+        fprintf(stderr, "Error opening file %s\n", send_times_file);
+        return 1;
+    }
+    for (int i = 0; i < n_messages - 1; i++) {
+        fprintf(fp2, "%.17f\n", send_times_diff[i]);
+    }
+    fclose(fp2);
+
     // Cleanup
-    // zmq_close(socket);
-    // zmq_ctx_destroy(context);
     free(send_times);
     free(send_times_diff);
     free(message_data);
