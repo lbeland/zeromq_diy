@@ -7,6 +7,9 @@ import time
 import numpy as np
 import pandas as pd
 import argparse
+import os
+print("Producer scheduler:", os.sched_getscheduler(0))
+print("Producer scheduler params:", os.sched_getparam(0))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -75,4 +78,5 @@ def main():
 
         
 if __name__ == "__main__":
+    # os.sched_setscheduler(0, os.SCHED_FIFO, os.sched_param(80))
     main()

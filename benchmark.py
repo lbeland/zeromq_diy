@@ -3,7 +3,7 @@ import time
 import os
 import signal
 import argparse
-
+import sys
 
 def main():
     parser = argparse.ArgumentParser()
@@ -15,19 +15,20 @@ def main():
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    result_folder = "results"
+    result_folder = "rt_results"
 
     os.makedirs(result_folder, exist_ok=True)
 
-    if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
-        return  # Skip if already exists
+    # if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
+    #     return  # Skip if already exists
 
     os.remove("/tmp/zeromq_comm.sock") if os.path.exists("/tmp/zeromq_comm.sock") else None
 
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
         [
-            "python3",
+            "sudo", "chrt", "-f", "99",
+            "venv/bin/python3",
             "Consumer/consumer.py",
             "--n_messages",  str(args.n_messages),
             "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
@@ -41,7 +42,8 @@ def main():
     # 2. Start producer
     producer = subprocess.Popen(
         [
-            "python3",
+            "sudo", "chrt", "-f", "99",
+            "venv/bin/python3",
             "Producer/producer.py",
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),
@@ -77,4 +79,5 @@ def terminate(proc):
 
 
 if __name__ == "__main__":
+    # RT scheduling removed from parent - let producer/consumer set their own if needed
     main()

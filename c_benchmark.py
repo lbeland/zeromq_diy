@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--output_file", type=str, default="Producer.csv")
     args = parser.parse_args()
 
-    result_folder = "c_results"
+    result_folder = "rt_c_results"
 
     os.makedirs(result_folder, exist_ok=True)
 
@@ -24,7 +24,8 @@ def main():
 
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
-        [
+        [   
+            "sudo", "chrt", "-f", "99",
             "./Consumer/consumer.bin",
             "--n_messages",  str(args.n_messages),
             "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
@@ -38,6 +39,7 @@ def main():
     # 2. Start producer
     producer = subprocess.Popen(
         [
+            "sudo", "chrt", "-f", "99",
             "./Producer/producer.bin",
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),

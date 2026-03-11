@@ -9,13 +9,13 @@ import os
 # from PyQt5.QtWidgets import QApplication
 
 
-results_folder = "zeromq_diy/results"
+results_folder = "zeromq_diy/rt_results"
 send_files = [f for f in os.listdir(results_folder) if "send_times" in f]
 recv_files = [f for f in os.listdir(results_folder) if "recv_times" in f]
 latency_files = [f for f in os.listdir(results_folder) if "process_times" in f]
 
 fig, axes = plt.subplots(3, 1, sharey=True,sharex=True)
-fig.suptitle("Zeromq DIY - Performance Over Time", fontsize=14, fontweight='bold')
+fig.suptitle("Zeromq DIY with Python RT - Performance Over Time", fontsize=14, fontweight='bold')
 axes = np.atleast_1d(axes).ravel()
 
 for idx, x in enumerate(zip([latency_files, send_files, recv_files], ["Latency", "Send Period", "Receive Period"])):
@@ -34,7 +34,7 @@ for idx, x in enumerate(zip([latency_files, send_files, recv_files], ["Latency",
     for file in sorted(files):
         
         n_channels, msg_size, node, _ = file.split('_')
-        if int(n_channels) >= 1 and int(msg_size) >= 1024:
+        if int(n_channels) == 20 and int(msg_size) >= 1024:
             print(f"Processing file: {file} | Channels: {n_channels} | Msg Size: {msg_size} ")
 
             data = np.loadtxt(os.path.join(results_folder, file), skiprows=0, delimiter=',')
