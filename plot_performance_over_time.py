@@ -9,7 +9,7 @@ import os
 # from PyQt5.QtWidgets import QApplication
 
 
-results_folder = "zeromq_diy/rt_results"
+results_folder = "rt_results"
 send_files = [f for f in os.listdir(results_folder) if "send_times" in f]
 recv_files = [f for f in os.listdir(results_folder) if "recv_times" in f]
 latency_files = [f for f in os.listdir(results_folder) if "process_times" in f]
@@ -53,52 +53,3 @@ for idx, x in enumerate(zip([latency_files, send_files, recv_files], ["Latency",
 axes[0].legend(loc="upper right")
 plt.show()
 
-
-
-# app = QApplication([])
-
-# pg.setConfigOption('background', 'w')
-# pg.setConfigOption('foreground', 'k')
-
-# win = pg.GraphicsLayoutWidget(show=True, title="Falcon Benchmark")
-# win.resize(1000, 800)
-
-# plots = []
-
-# titles = ["Latency", "Send Period", "Receive Period"]
-# file_groups = [latency_files, send_files, recv_files]
-
-# for idx, (files, label) in enumerate(zip(file_groups, titles)):
-
-#     plot = win.addPlot(row=idx, col=0, title=label)
-#     plot.setLabel("left", "Time (μs)")
-#     plot.setLabel("bottom", "Message Index")
-#     plot.addLegend()
-
-#     plots.append(plot)
-
-#     for idx, file in enumerate(sorted(files)):
-
-#         n_channels, msg_size, node, _ = file.split('_')
-#         print(f"Processing file: {file} | Channels: {n_channels} | Msg Size: {msg_size}")
-
-#         data = np.loadtxt(os.path.join(results_folder, file),
-#                           skiprows=1, delimiter=',')
-
-#         y = data[:] * 1e6
-#         x = np.arange(len(y))
-        
-#         curve = plot.plot(
-#             x,
-#             y,
-#             pen=pg.mkPen(list(colors.TABLEAU_COLORS.values())[idx % len(colors.TABLEAU_COLORS)], width=2),
-#             name=f"Ch {n_channels} | Msg {msg_size}",
-#             clickable=True
-#         )
-
-#         def on_click(item, file=file, ch=n_channels, msg=msg_size):
-#             print(f"Clicked curve → file={file}, channels={ch}, msg_size={msg}")
-
-#         curve.sigClicked.connect(on_click)
-
-# app.exec()

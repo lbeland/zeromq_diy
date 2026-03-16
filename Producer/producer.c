@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
             message_data[j] = now;
         }
         
-        int size = zmq_send(socket, message_data, message_size, 0);
+        zmq_send(socket, message_data, message_size, 0);
         send_times[i] = now;
         count++;
     }
