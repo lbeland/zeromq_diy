@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
         { "num_channels", required_argument, 0, 'c' },
         { "max_buffer_size", required_argument, 0, 'b' },
         { "output_file", required_argument, 0, 'o' },
-        0
+        { 0, 0, 0, 0 }
     };
     while ((opt = getopt_long(argc, argv, "n:m:c:b:o:", long_options, NULL)) != -1) {
         switch (opt) {
@@ -65,14 +65,28 @@ int main(int argc, char *argv[]) {
 
     // Create ZeroMQ context and socket
     void *context = zmq_ctx_new();
+    if (!context) {
+        fprintf(stderr, "zmq_ctx_new failed: %s\n", zmq_strerror(errno));
+        return 1;
+    }
     void *socket = zmq_socket(context, ZMQ_PUSH);
+    if (!socket) {
+        fprintf(stderr, "zmq_socket failed: %s\n", zmq_strerror(errno));
+        zmq_ctx_destroy(context);
+        return 1;
+    }
     zmq_setsockopt(socket, ZMQ_SNDHWM, &(int){max_buffer_size}, sizeof(int));
     int hwm;
     size_t opt_len = sizeof(int);
     zmq_getsockopt(socket, ZMQ_SNDHWM, &hwm, &opt_len);
     printf("Socket HWM: %d\n", hwm);
 
-    zmq_bind(socket, "ipc:///tmp/zeromq_comm.sock");
+    if (zmq_bind(socket, "ipc:///tmp/zeromq_comm.sock") != 0) {
+        fprintf(stderr, "zmq_bind failed: %s\n", zmq_strerror(errno));
+        zmq_close(socket);
+        zmq_ctx_destroy(context);
+        return 1;
+    }
 
     printf("Producer starting... Sending messages via IPC socket\n");
 
@@ -97,7 +111,16 @@ int main(int argc, char *argv[]) {
         for (int j = 0; j < num_channels * msg_size; j++) {
             message_data[j] = now;
         }
-        zmq_send(socket, message_data, message_size, 0);
+        int ret = zmq_send(socket, message_data, message_size, 0);
+        if (ret == -1) {
+            fprintf(stderr, "Error sending warmup message: %s\n", zmq_strerror(errno));
+            zmq_close(socket);
+            zmq_ctx_destroy(context);
+            free(send_times);
+            free(send_times_diff);
+            free(message_data);
+            return 1;
+        }
     }
 
     int count = 0;
@@ -108,7 +131,16 @@ int main(int argc, char *argv[]) {
             message_data[j] = now;
         }
         
-        zmq_send(socket, message_data, message_size, 0);
+        int ret = zmq_send(socket, message_data, message_size, 0);
+        if (ret == -1) {
+            fprintf(stderr, "Error sending message: %s\n", zmq_strerror(errno));
+            zmq_close(socket);
+            zmq_ctx_destroy(context);
+            free(send_times);
+            free(send_times_diff);
+            free(message_data);
+            return 1;
+        }
         send_times[i] = now;
         count++;
     }
@@ -172,6 +204,8 @@ int main(int argc, char *argv[]) {
     fclose(fp2);
 
     // Cleanup
+    zmq_close(socket);
+    zmq_ctx_destroy(context);
     free(send_times);
     free(send_times_diff);
     free(message_data);

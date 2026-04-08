@@ -4,23 +4,28 @@ import os
 import signal
 import argparse
 import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent
+PRODUCER_ROOT = REPO_ROOT / "Producer"
+CONSUMER_ROOT = REPO_ROOT / "Consumer"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_messages", type=int, default=1000)
+    parser.add_argument("--n_messages", type=int, default=10000)
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
-    parser.add_argument("--max_buffer_size", type=int, default=10)
+    parser.add_argument("--max_buffer_size", type=int, default=16)
     parser.add_argument("--output_file", type=str, default="Producer.csv")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    result_folder = "rt_results"
+    result_folder = f"{REPO_ROOT}/rt_results"
 
     os.makedirs(result_folder, exist_ok=True)
 
-    # if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
-    #     return  # Skip if already exists
+    if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
+        return  # Skip if already exists
 
     os.remove("/tmp/zeromq_comm.sock") if os.path.exists("/tmp/zeromq_comm.sock") else None
 
@@ -28,8 +33,9 @@ def main():
     consumer = subprocess.Popen(
         [
             "sudo", "chrt", "-f", "99",
-            "venv/bin/python3",
-            "Consumer/consumer.py",
+            "taskset", "-c", "5",
+            f"{REPO_ROOT}/venv/bin/python3",
+            f"{CONSUMER_ROOT}/consumer.py",
             "--n_messages",  str(args.n_messages),
             "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
         ],
@@ -43,8 +49,9 @@ def main():
     producer = subprocess.Popen(
         [
             "sudo", "chrt", "-f", "99",
-            "venv/bin/python3",
-            "Producer/producer.py",
+            "taskset", "-c", "6",
+            f"{REPO_ROOT}/venv/bin/python3",
+            f"{PRODUCER_ROOT}/producer.py",
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),

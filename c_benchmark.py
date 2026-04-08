@@ -3,7 +3,11 @@ import time
 import os
 import signal
 import argparse
+from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent
+PRODUCER_ROOT = REPO_ROOT / "Producer"
+CONSUMER_ROOT = REPO_ROOT / "Consumer"
 
 def main():
     parser = argparse.ArgumentParser()
@@ -15,18 +19,27 @@ def main():
     parser.add_argument("--output_file", type=str, default="Producer.csv")
     args = parser.parse_args()
 
-    result_folder = "rt_c_results"
+    result_folder = f"{REPO_ROOT}/rt_c_results"
 
     os.makedirs(result_folder, exist_ok=True)
 
     if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
         return
 
+    # Remove stale IPC socket left by previously killed/root-owned runs.
+    try:
+        if os.path.exists("/tmp/zeromq_comm.sock"):
+            os.remove("/tmp/zeromq_comm.sock")
+    except OSError as exc:
+        print(f"Failed to remove stale IPC socket: {exc}")
+        return
+
     # 1. Start consumer FIRST
     consumer = subprocess.Popen(
         [   
             "sudo", "chrt", "-f", "99",
-            "./Consumer/consumer.bin",
+            "taskset", "-c", "5",
+            f"{CONSUMER_ROOT}/consumer.bin",
             "--n_messages",  str(args.n_messages),
             "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
         ],
@@ -40,7 +53,8 @@ def main():
     producer = subprocess.Popen(
         [
             "sudo", "chrt", "-f", "99",
-            "./Producer/producer.bin",
+            "taskset", "-c", "6",
+            f"{PRODUCER_ROOT}/producer.bin",
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),
@@ -54,6 +68,10 @@ def main():
         # 3. Wait for completion
         producer.wait(10)
         consumer.wait(10)
+    except KeyboardInterrupt:
+        print("Keyboard interrupt received, terminating processes")
+        terminate(producer)
+        terminate(consumer)
 
     except subprocess.TimeoutExpired:
         print("Timeout expired, terminating processes")

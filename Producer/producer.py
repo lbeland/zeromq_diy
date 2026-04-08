@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import argparse
 import os
-print("Producer scheduler:", os.sched_getscheduler(0))
 print("Producer scheduler params:", os.sched_getparam(0))
 
 def main():
@@ -45,7 +44,7 @@ def main():
             # print(f"Sent warmup message {i+1}/5: {now}")
             socket.send((default_data*now).tobytes())
 
-        time.sleep(0.01)
+        # time.sleep(0.01)
 
         for i in range(args.n_messages):
             now = time.monotonic()

@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     {
         { "n_messages", required_argument, 0, 'n' },
         { "output_file", required_argument, 0, 'o' },
-        0
+        { 0, 0, 0, 0 }
     };
     while ((opt = getopt_long(argc, argv, "n:o:", long_options, NULL)) != -1) {
         switch (opt) {
@@ -45,10 +45,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Create ZeroMQ context and socket
+        // Create ZeroMQ context and socket
     void *context = zmq_ctx_new();
     void *socket = zmq_socket(context, ZMQ_PULL);
-    zmq_connect(socket, "ipc:///tmp/zeromq_comm.sock");
+    int ret = zmq_connect(socket, "ipc:///tmp/zeromq_comm.sock");
+    if (ret != 0) {
+        fprintf(stderr, "Error connecting to socket: %s\n", zmq_strerror(errno));
+        return 1;
+    }
 
     printf("Consumer starting... Listening for messages via IPC socket\n");
 

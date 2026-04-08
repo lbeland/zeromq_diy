@@ -1,5 +1,6 @@
 ## Install requirements
 pip install -r requirements.txt
+sudo apt-get install libzmq3-dev
 
 
 ## Start Python benchmark:

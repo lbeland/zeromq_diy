@@ -8,7 +8,6 @@ import pandas as pd
 import time
 import argparse
 import os
-print("Consumer scheduler:", os.sched_getscheduler(0))
 print("Consumer scheduler params:", os.sched_getparam(0))
 
 def main():
