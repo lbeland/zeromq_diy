@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2
+CFLAGS = -Wall -Wextra -O2 -march=native
 LIBS = -lzmq -lm
 
 C_SOURCES := $(shell find . -type f -name '*.c' -not -path './venv/*')

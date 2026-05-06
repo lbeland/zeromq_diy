@@ -1,88 +1,70 @@
+"""
+Benchmark driver for benchmark_inproc.bin.
+
+Because producer and consumer now live in the same process there is only one
+binary to launch – no socket/timing race between two separate processes.
+
+Usage:
+    python inproc_benchmark.py [options]
+"""
+
 import subprocess
-import time
 import os
-import signal
 import argparse
+import signal
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent
-PRODUCER_ROOT = REPO_ROOT / "Producer"
-CONSUMER_ROOT = REPO_ROOT / "Consumer"
+REPO_ROOT   = Path(__file__).resolve().parent
+BINARY_ROOT = REPO_ROOT
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_messages", type=int, default=1000)
-    parser.add_argument("--msg_size", type=int, default=1)
-    parser.add_argument("--num_channels", type=int, default=1)
-    parser.add_argument("--max_buffer_size", type=int, default=10)
-    parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument("--output_file", type=str, default="Producer.csv")
+    parser.add_argument("--n_messages",      type=int,  default=1000)
+    parser.add_argument("--msg_size",        type=int,  default=1)
+    parser.add_argument("--num_channels",    type=int,  default=1)
+    parser.add_argument("--max_buffer_size", type=int,  default=16)
+    parser.add_argument("--overwrite",       action="store_true")
     args = parser.parse_args()
 
-    result_folder = f"{REPO_ROOT}/rt_c_results"
+    result_folder = REPO_ROOT / "rt_c_results"
+    result_folder.mkdir(exist_ok=True)
 
-    os.makedirs(result_folder, exist_ok=True)
-
-    if os.path.exists(f"{result_folder}/{args.num_channels}_{args.msg_size}_Consumer.csv") and not args.overwrite:
+    consumer_csv = result_folder / f"{args.num_channels}_{args.msg_size}_Consumer.csv"
+    if consumer_csv.exists() and not args.overwrite:
+        print(f"Output already exists ({consumer_csv}), skipping. Use --overwrite to re-run.")
         return
 
-    # Remove stale IPC socket left by previously killed/root-owned runs.
-    try:
-        if os.path.exists("/tmp/zeromq_comm.sock"):
-            os.remove("/tmp/zeromq_comm.sock")
-    except OSError as exc:
-        print(f"Failed to remove stale IPC socket: {exc}")
-        return
+    output_base = str(result_folder / f"{args.num_channels}_{args.msg_size}")
 
-    # 1. Start consumer FIRST
-    consumer = subprocess.Popen(
-        [   
-            "sudo", "chrt", "-f", "99",
-            "taskset", "-c", "5",
-            f"{CONSUMER_ROOT}/consumer.bin",
-            "--n_messages",  str(args.n_messages),
-            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
-        ],
-        preexec_fn=os.setsid,  # allows group kill
-    )
-
-    # Give consumer time to bind socket
-    time.sleep(0.5)
-
-    # 2. Start producer
-    producer = subprocess.Popen(
+    proc = subprocess.Popen(
         [
             "sudo", "chrt", "-f", "99",
-            "taskset", "-c", "6",
-            f"{PRODUCER_ROOT}/producer.bin",
-            "--n_messages", str(args.n_messages),
-            "--num_channels", str(args.num_channels),
-            "--msg_size", str(args.msg_size),
+            "taskset", "-c", "0,1",          # allow both threads to use cores 5 & 6
+            str(BINARY_ROOT / "producer_consumer.bin"),
+            "--n_messages",      str(args.n_messages),
+            "--msg_size",        str(args.msg_size),
+            "--num_channels",    str(args.num_channels),
             "--max_buffer_size", str(args.max_buffer_size),
-            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
+            "--output_file",     output_base,
         ],
         preexec_fn=os.setsid,
     )
 
     try:
-        # 3. Wait for completion
-        producer.wait(10)
-        consumer.wait(10)
+        proc.wait(timeout=30)
     except KeyboardInterrupt:
-        print("Keyboard interrupt received, terminating processes")
-        terminate(producer)
-        terminate(consumer)
-
+        print("Interrupted, terminating...")
+        _terminate(proc)
     except subprocess.TimeoutExpired:
-        print("Timeout expired, terminating processes")
-        terminate(producer)
-        terminate(consumer)
+        print("Timeout, terminating...")
+        _terminate(proc)
         raise
 
-    print(f"Benchmark complete")
+    print("Benchmark complete.")
 
 
-def terminate(proc):
+def _terminate(proc):
     try:
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
     except Exception:

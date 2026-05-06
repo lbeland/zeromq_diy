@@ -14,13 +14,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_messages", type=int, default=3)
     parser.add_argument("--output_file", type=str, default="recv_times.csv")
+    parser.add_argument("--max_buffer_size", type=int, default=10)
     args = parser.parse_args()
 
     # Create ZeroMQ context and socket
     context = zmq.Context()
 
     socket = context.socket(zmq.PULL)
-    # socket.setsockopt(zmq.RCVHWM, 10)
+    socket.setsockopt(zmq.RCVHWM, args.max_buffer_size)
     # socket.setsockopt(zmq.RCVBUF, 8)  # 10 messages * 8 bytes per message
 
 

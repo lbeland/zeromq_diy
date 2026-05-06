@@ -19,6 +19,7 @@ double get_monotonic_time() {
 int main(int argc, char *argv[]) {
     int n_messages = 1000;
     char output_file[256] = "recv_times.csv";
+    int max_buffer_size = 10;
 
     // Parse command-line arguments
     int opt;
@@ -26,9 +27,10 @@ int main(int argc, char *argv[]) {
     {
         { "n_messages", required_argument, 0, 'n' },
         { "output_file", required_argument, 0, 'o' },
+        { "max_buffer_size", required_argument, 0, 'b' },
         { 0, 0, 0, 0 }
     };
-    while ((opt = getopt_long(argc, argv, "n:o:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:o:b:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'n':
                 n_messages = atoi(optarg);
@@ -36,6 +38,9 @@ int main(int argc, char *argv[]) {
             case 'o':
                 strncpy(output_file, optarg, sizeof(output_file) - 1);
                 output_file[sizeof(output_file) - 1] = '\0';
+                break;
+            case 'b':
+                max_buffer_size = atoi(optarg);
                 break;
             default:
                 fprintf(stderr, "Usage: %s [options]\n", argv[0]);
@@ -48,6 +53,7 @@ int main(int argc, char *argv[]) {
         // Create ZeroMQ context and socket
     void *context = zmq_ctx_new();
     void *socket = zmq_socket(context, ZMQ_PULL);
+    zmq_setsockopt(socket, ZMQ_RCVHWM, &max_buffer_size, sizeof(int));
     int ret = zmq_connect(socket, "ipc:///tmp/zeromq_comm.sock");
     if (ret != 0) {
         fprintf(stderr, "Error connecting to socket: %s\n", zmq_strerror(errno));

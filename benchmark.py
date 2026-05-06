@@ -37,7 +37,8 @@ def main():
             f"{REPO_ROOT}/venv/bin/python3",
             f"{CONSUMER_ROOT}/consumer.py",
             "--n_messages",  str(args.n_messages),
-            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
+            "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}",
+            "--max_buffer_size", str(args.max_buffer_size//2),
         ],
         preexec_fn=os.setsid,  # allows group kill
     )
@@ -55,7 +56,7 @@ def main():
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),
-            "--max_buffer_size", str(args.max_buffer_size),
+            "--max_buffer_size", str(args.max_buffer_size//2),
             "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
         ],
         preexec_fn=os.setsid,
