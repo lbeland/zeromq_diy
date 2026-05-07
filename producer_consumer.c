@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <math.h>
 #include <getopt.h>
 #include <errno.h>
@@ -35,6 +36,7 @@ typedef struct {
     int     msg_size;        /* doubles per channel */
     int     num_channels;
     int     max_buffer_size;
+    float   t_wait;
     char    output_file[256];
 } BenchmarkConfig;
 
@@ -107,8 +109,10 @@ static void *producer_thread(void *arg) {
 
     /* --- measurement loop --- */
     for (int i = 0; i < cfg->n_messages; i++) {
+        if (cfg->t_wait > 0) {
+            usleep(cfg->t_wait * 1e6);
+        }
         double now = get_monotonic_time();
-        double *message_data = malloc(message_size);
         for (int j = 0; j < cfg->num_channels * cfg->msg_size; j++)
             message_data[j] = now;
         if (zmq_send(socket, message_data, message_size, 0) == -1) {
@@ -204,6 +208,14 @@ static void *consumer_thread(void *arg) {
 
     /* --- measurement loop --- */
     while (res->n < cfg->n_messages) {
+        // int size = zmq_recv(socket, buf, expected_size, ZMQ_DONTWAIT);
+        // if (size == -1) {
+        //     if (errno == EAGAIN) {
+        //         continue;  // no message yet → spin
+        //     }
+        //     fprintf(stderr, "[Consumer] recv error: %s\n", zmq_strerror(errno));
+        //     break;
+        // }
         if (zmq_recv(socket, buf, expected_size, 0) == -1) {
             fprintf(stderr, "[Consumer] recv error at msg %d: %s\n",
                     res->n, zmq_strerror(errno));
@@ -302,6 +314,7 @@ int main(int argc, char *argv[]) {
         .msg_size        = 1,
         .num_channels    = 1,
         .max_buffer_size = 10,
+        .t_wait          = 0.0001,
         .output_file     = "result"
     };
 
@@ -310,16 +323,18 @@ int main(int argc, char *argv[]) {
         { "msg_size",        required_argument, 0, 'm' },
         { "num_channels",    required_argument, 0, 'c' },
         { "max_buffer_size", required_argument, 0, 'b' },
+        { "t_wait",          required_argument, 0, 't' },
         { "output_file",     required_argument, 0, 'o' },
         { 0, 0, 0, 0 }
     };
     int opt;
-    while ((opt = getopt_long(argc, argv, "n:m:c:b:o:", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:m:c:b:t:o:", long_opts, NULL)) != -1) {
         switch (opt) {
             case 'n': cfg.n_messages      = atoi(optarg); break;
             case 'm': cfg.msg_size        = atoi(optarg); break;
             case 'c': cfg.num_channels    = atoi(optarg); break;
             case 'b': cfg.max_buffer_size = atoi(optarg); break;
+            case 't': cfg.t_wait          = atof(optarg); break;
             case 'o':
                 strncpy(cfg.output_file, optarg, sizeof(cfg.output_file) - 1);
                 cfg.output_file[sizeof(cfg.output_file) - 1] = '\0';
@@ -327,15 +342,15 @@ int main(int argc, char *argv[]) {
             default:
                 fprintf(stderr, "Usage: %s [--n_messages N] [--msg_size M] "
                         "[--num_channels C] [--max_buffer_size B] "
-                        "[--output_file PATH]\n", argv[0]);
+                        "[--t_wait T] [--output_file PATH]\n", argv[0]);
                 return 1;
         }
     }
 
     printf("Config: n_messages=%d  msg_size=%d  num_channels=%d  "
-           "max_buffer_size=%d  output=%s\n",
+           "max_buffer_size=%d  t_wait=%f  output=%s\n",
            cfg.n_messages, cfg.msg_size, cfg.num_channels,
-           cfg.max_buffer_size, cfg.output_file);
+           cfg.max_buffer_size, cfg.t_wait, cfg.output_file);
 
     /* Shared ZMQ context – mandatory for inproc */
     cfg.context = zmq_ctx_new();

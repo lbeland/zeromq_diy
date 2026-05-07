@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <math.h>
 #include <getopt.h>
 #include <errno.h>
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
     int msg_size = 1;
     int num_channels = 1;
     int max_buffer_size = 10;
+    float t_wait = 0.0001;
     char output_file[256] = "send_times.csv";
 
     // Parse command-line arguments
@@ -30,10 +32,11 @@ int main(int argc, char *argv[]) {
         { "msg_size", required_argument, 0, 'm' },
         { "num_channels", required_argument, 0, 'c' },
         { "max_buffer_size", required_argument, 0, 'b' },
+        { "t_wait", required_argument, 0, 't' },
         { "output_file", required_argument, 0, 'o' },
         { 0, 0, 0, 0 }
     };
-    while ((opt = getopt_long(argc, argv, "n:m:c:b:o:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:m:c:b:t:o:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'n':
                 n_messages = atoi(optarg);
@@ -47,6 +50,9 @@ int main(int argc, char *argv[]) {
             case 'b':
                 max_buffer_size = atoi(optarg);
                 break;
+            case 't':
+                t_wait = atof(optarg);
+                break;
             case 'o':
                 strncpy(output_file, optarg, sizeof(output_file) - 1);
                 output_file[sizeof(output_file) - 1] = '\0';
@@ -56,6 +62,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "  -n n_messages (default: 1000)\n");
                 fprintf(stderr, "  -m msg_size (default: 1)\n");
                 fprintf(stderr, "  -c num_channels (default: 1)\n");
+                fprintf(stderr, "  -t t_wait (default: 0.0001)\n");
                 fprintf(stderr, "  -o output_file (default: send_times.csv)\n");
                 return 1;
         }
@@ -125,6 +132,9 @@ int main(int argc, char *argv[]) {
 
     int count = 0;
     for (int i = 0; i < n_messages; i++) {
+        if (t_wait > 0) {
+            usleep(t_wait * 1e6);
+        }
         double now = get_monotonic_time();
         // Fill message with current timestamp
         for (int j = 0; j < num_channels * msg_size; j++) {

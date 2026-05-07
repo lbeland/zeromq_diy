@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
     parser.add_argument("--max_buffer_size", type=int, default=10)
+    parser.add_argument("--t_wait", type=float, default=0.0001)
     parser.add_argument("--output_file", type=str, default="producer_metric.csv")
     args = parser.parse_args()
 
@@ -47,6 +48,8 @@ def main():
         # time.sleep(0.01)
 
         for i in range(args.n_messages):
+            if args.t_wait > 0:
+                time.sleep(args.t_wait)  # Let Consumer process last message
             now = time.monotonic()
             data = default_data * now
             socket.send(data.tobytes()) # Blocks on full buffer

@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--msg_size",        type=int,  default=1)
     parser.add_argument("--num_channels",    type=int,  default=1)
     parser.add_argument("--max_buffer_size", type=int,  default=16)
+    parser.add_argument("--t_wait",          type=float, default=0.0001)
     parser.add_argument("--overwrite",       action="store_true")
     args = parser.parse_args()
 
@@ -44,6 +45,7 @@ def main():
             str(BINARY_ROOT / "producer_consumer.bin"),
             "--n_messages",      str(args.n_messages),
             "--msg_size",        str(args.msg_size),
+            "--t_wait",          str(args.t_wait),
             "--num_channels",    str(args.num_channels),
             "--max_buffer_size", str(args.max_buffer_size),
             "--output_file",     output_base,

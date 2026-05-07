@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--msg_size", type=int, default=1)
     parser.add_argument("--num_channels", type=int, default=1)
     parser.add_argument("--max_buffer_size", type=int, default=10)
+    parser.add_argument("--t_wait", type=float, default=0.0001)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--output_file", type=str, default="Producer.csv")
     args = parser.parse_args()
@@ -59,6 +60,7 @@ def main():
             "--n_messages", str(args.n_messages),
             "--num_channels", str(args.num_channels),
             "--msg_size", str(args.msg_size),
+            "--t_wait", str(args.t_wait),
             "--max_buffer_size", str(args.max_buffer_size//2),
             "--output_file", f"{result_folder}/{args.num_channels}_{args.msg_size}"
         ],
