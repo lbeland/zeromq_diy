@@ -41,7 +41,7 @@ def main():
     proc = subprocess.Popen(
         [
             "sudo", "chrt", "-f", "99",
-            "taskset", "-c", "0,1",          # allow both threads to use cores 5 & 6
+            # "taskset", "-c", "0,1",          # allow both threads to use cores 5 & 6
             str(BINARY_ROOT / "producer_consumer.bin"),
             "--n_messages",      str(args.n_messages),
             "--msg_size",        str(args.msg_size),

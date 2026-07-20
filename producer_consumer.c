@@ -16,6 +16,7 @@
  *     --output_file   <str>   Base path for CSV output         (default: "result")
  */
 
+#define _GNU_SOURCE
 #include <zmq.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -26,12 +27,14 @@
 #include <math.h>
 #include <getopt.h>
 #include <errno.h>
+#include <sched.h>
 
 /* ------------------------------------------------------------------ */
 /* Shared configuration passed to both threads                         */
 /* ------------------------------------------------------------------ */
 typedef struct {
     void   *context;
+    int    *core_ids;        /* optional CPU core IDs for thread pinning */
     int     n_messages;
     int     msg_size;        /* doubles per channel */
     int     num_channels;
@@ -62,12 +65,22 @@ static inline double get_monotonic_time(void) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec / 1e9;
 }
+
+void pin_thread(int core_id) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+}
+
 /* ------------------------------------------------------------------ */
 /* Producer thread                                                      */
 /* ------------------------------------------------------------------ */
 static void *producer_thread(void *arg) {
     BenchmarkConfig *cfg = (BenchmarkConfig *)arg;
     ProducerResult  *res = calloc(1, sizeof(ProducerResult));
+
+    pin_thread(cfg->core_ids[0]);
 
     int message_size = cfg->num_channels * cfg->msg_size * (int)sizeof(double);
 
@@ -171,6 +184,8 @@ static void *producer_thread(void *arg) {
 static void *consumer_thread(void *arg) {
     BenchmarkConfig *cfg = (BenchmarkConfig *)arg;
     ConsumerResult  *res = calloc(1, sizeof(ConsumerResult));
+
+    pin_thread(cfg->core_ids[1]);
 
     /* inproc connect – socket must be created AFTER the producer binds.
        A short sleep ensures the bind completes first; in practice the
@@ -358,6 +373,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "zmq_ctx_new failed: %s\n", zmq_strerror(errno));
         return 1;
     }
+    cfg.core_ids = (int[]){5,6};  /* optional: core IDs for producer and consumer */
 
     /* Launch threads.
        Producer binds first → start it before the consumer. */
