@@ -177,6 +177,10 @@ int main(int argc, char *argv[]) {
     char base_output_file[256];
     strncpy(base_output_file, output_file, sizeof(base_output_file) - 1);
     base_output_file[sizeof(base_output_file) - 1] = '\0';
+    size_t bolen = strlen(base_output_file);
+    if (bolen > 4 && strcmp(base_output_file + bolen - 4, ".csv") == 0) {
+        base_output_file[bolen - 4] = '\0';
+    }
 
     char metrics_file[300];
     snprintf(metrics_file, sizeof(metrics_file), "%s_Consumer.csv", base_output_file);
@@ -190,18 +194,6 @@ int main(int argc, char *argv[]) {
     fprintf(fp, "std,%.6f,%.6f, \n", std_period, std_latency);
     fprintf(fp, "max,%.6f,%.6f, \n", max_diff*1e6, max*1e6);
     fclose(fp);
-
-    char recv_times_file[300];
-    snprintf(recv_times_file, sizeof(recv_times_file), "%s_recv_times.csv", base_output_file);
-    FILE *fp2 = fopen(recv_times_file, "w");
-    if (fp2 == NULL) {
-        fprintf(stderr, "Error opening file %s\n", recv_times_file);
-        return 1;
-    }
-    for (int i = 0; i < n_messages - 1; i++) {
-        fprintf(fp2, "%.17f\n", recv_times_diff[i]);
-    }
-    fclose(fp2);
 
     char process_times_file[300];
     snprintf(process_times_file, sizeof(process_times_file), "%s_process_times.csv", base_output_file);

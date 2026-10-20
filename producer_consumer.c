@@ -80,6 +80,15 @@ static void *producer_thread(void *arg) {
     BenchmarkConfig *cfg = (BenchmarkConfig *)arg;
     ProducerResult  *res = calloc(1, sizeof(ProducerResult));
 
+    /* Derive base output file without .csv extension so appended filenames don't repeat .csv */
+    char base_output_file[256];
+    strncpy(base_output_file, cfg->output_file, sizeof(base_output_file) - 1);
+    base_output_file[sizeof(base_output_file) - 1] = '\0';
+    size_t bolen = strlen(base_output_file);
+    if (bolen > 4 && strcmp(base_output_file + bolen - 4, ".csv") == 0) {
+        base_output_file[bolen - 4] = '\0';
+    }
+
     pin_thread(cfg->core_ids[0]);
 
     int message_size = cfg->num_channels * cfg->msg_size * (int)sizeof(double);
@@ -156,7 +165,7 @@ static void *producer_thread(void *arg) {
 
     /* --- write CSVs --- */
     char path[512];
-    snprintf(path, sizeof(path), "%s_Producer.csv", cfg->output_file);
+    snprintf(path, sizeof(path), "%s_Producer.csv", base_output_file);
     FILE *fp = fopen(path, "w");
     if (fp) {
         fprintf(fp, "Metric,Send_period\n");
@@ -166,7 +175,7 @@ static void *producer_thread(void *arg) {
         fclose(fp);
     }
 
-    snprintf(path, sizeof(path), "%s_send_times.csv", cfg->output_file);
+    snprintf(path, sizeof(path), "%s_send_times.csv", base_output_file);
     fp = fopen(path, "w");
     if (fp) {
         for (int i = 0; i < n - 1; i++)
@@ -211,6 +220,15 @@ static void *consumer_thread(void *arg) {
     }
 
     double first_timestamp = 0.0;
+
+    /* Derive base output file without .csv extension so appended filenames don't repeat .csv */
+    char base_output_file[256];
+    strncpy(base_output_file, cfg->output_file, sizeof(base_output_file) - 1);
+    base_output_file[sizeof(base_output_file) - 1] = '\0';
+    size_t bolen_c = strlen(base_output_file);
+    if (bolen_c > 4 && strcmp(base_output_file + bolen_c - 4, ".csv") == 0) {
+        base_output_file[bolen_c - 4] = '\0';
+    }
 
     /* --- warmup --- */
     for (int i = 0; i < 500; i++) {
@@ -289,7 +307,7 @@ static void *consumer_thread(void *arg) {
 
     /* --- write CSVs --- */
     char path[512];
-    snprintf(path, sizeof(path), "%s_Consumer.csv", cfg->output_file);
+    snprintf(path, sizeof(path), "%s_Consumer.csv", base_output_file);
     FILE *fp = fopen(path, "w");
     if (fp) {
         fprintf(fp, "Metric,Recv_period,Latency,Throughput\n");
@@ -299,15 +317,7 @@ static void *consumer_thread(void *arg) {
         fclose(fp);
     }
 
-    snprintf(path, sizeof(path), "%s_recv_times.csv", cfg->output_file);
-    fp = fopen(path, "w");
-    if (fp) {
-        for (int i = 0; i < n - 1; i++)
-            fprintf(fp, "%.17f\n", res->recv_times[i + 1] - res->recv_times[i]);
-        fclose(fp);
-    }
-
-    snprintf(path, sizeof(path), "%s_process_times.csv", cfg->output_file);
+    snprintf(path, sizeof(path), "%s_process_times.csv", base_output_file);
     fp = fopen(path, "w");
     if (fp) {
         for (int i = 0; i < n; i++)
